@@ -1,0 +1,14 @@
+{
+  "decisions": [
+    {
+      "id": "1760334012189-t4ucz7t0e",
+      "timestamp": "2025-10-13T05:40:12.189Z",
+      "question": "How should we implement the alignment scoring algorithm?",
+      "decision": "Use rule-based keyword matching with weighted scoring (vision 40%, constraints 30%, phase 20%, criteria 10%)",
+      "rationale": "Deterministic and predictable scoring is more reliable than AI/ML. Keyword matching is simple, fast, and debuggable. Weighted approach ensures vision is prioritized.",
+      "alignmentCheck": true,
+      "impact": "high",
+      "context": "This is the core algorithm that determines if tasks align with the master plan. Must be accurate and explainable."
+    }
+  ]
+}
