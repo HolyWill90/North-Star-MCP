@@ -2,10 +2,13 @@
  * Core type definitions for the North Star MCP
  */
 
+export const CURRENT_SCHEMA_VERSION = '1.0.0';
+
 export type ConstraintType = 'scope' | 'technical' | 'time' | 'complexity';
 export type MilestoneStatus = 'pending' | 'in_progress' | 'completed';
 export type PhaseStatus = 'pending' | 'active' | 'completed';
 export type DecisionImpact = 'low' | 'medium' | 'high';
+export type RuleSeverity = 'warn' | 'error';
 
 /**
  * A constraint that prevents scope creep
@@ -48,6 +51,7 @@ export interface Phase {
  * The master plan for the project
  */
 export interface MasterPlan {
+  schemaVersion?: string; // Optional for backward compatibility, defaults to '1.0.0'
   id: string;
   name: string;
   vision: string;
@@ -127,6 +131,37 @@ export interface DecisionReview {
 }
 
 /**
+ * A codebase rule
+ */
+export interface Rule {
+  id: string;
+  description: string;
+  rationale: string;
+  severity: RuleSeverity;
+  createdAt: string;
+}
+
+/**
+ * A scratchpad entry
+ */
+export interface ScratchpadEntry {
+  id: string;
+  timestamp: string;
+  tag: string;
+  content: string;
+}
+
+/**
+ * A handoff context
+ */
+export interface HandoffContext {
+  timestamp: string;
+  summary: string;
+  brokenFeatures: string[];
+  nextSteps: string[];
+}
+
+/**
  * Storage interface
  */
 export interface Storage {
@@ -136,4 +171,13 @@ export interface Storage {
   saveDecision(decision: Decision): Promise<void>;
   getMetrics(): Promise<ProgressMetrics>;
   updateMetrics(metrics: ProgressMetrics): Promise<void>;
+
+  getRules(): Promise<Rule[]>;
+  saveRule(rule: Rule): Promise<void>;
+
+  getScratchpad(): Promise<ScratchpadEntry[]>;
+  appendScratchpad(entry: ScratchpadEntry): Promise<void>;
+
+  getHandoff(): Promise<HandoffContext | null>;
+  saveHandoff(handoff: HandoffContext): Promise<void>;
 }

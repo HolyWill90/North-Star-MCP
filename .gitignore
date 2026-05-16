@@ -13,6 +13,7 @@ dist/
 .idea/
 *.swp
 *.swo
+.gemini/
 
 # OS
 .DS_Store
@@ -26,5 +27,15 @@ npm-debug.log*
 .env
 .env.local
 
-# North Star storage (optional - you may want to commit this)
-# .north-star/
+# North Star runtime data (user-specific)
+.north-star/
+
+# Test coverage
+coverage/
+
+# Test artifacts
+llm_test*.txt
+test_local_llm.py
+
+# Local configs
+mcp_config.json

@@ -1,314 +1,160 @@
-# North Star MCP
+# NorthStar
 
-> Keep AI assistants focused on the master plan and prevent scope creep
-
-## Overview
-
-North Star MCP is a Model Context Protocol server that helps AI assistants maintain focus on project goals during development. It prevents scope creep, over-engineering, and feature drift by providing a persistent "project compass" that validates every decision against the master plan.
+An MCP server that anchors AI agents to their original goal.
 
 ## The Problem
 
-When AI assistants work on large projects, they often:
-- Get distracted by mini-tasks and lose sight of the main goal
-- Over-engineer solutions beyond what's needed
-- Drift from the original vision as requirements evolve
-- Build features that don't align with core objectives
-- Create technical debt by not validating against the master plan
+LLM agents drift from the user's original objective during long tasks. This happens through three documented mechanisms:
 
-## The Solution
+1. **Context compression** — platforms summarize old messages to fit the context window, losing constraints, decisions, and rationale
+2. **Sycophancy** — agents treat every piece of user feedback as a new directive, abandoning the previous plan
+3. **Tangent-chasing** — agents discover new information mid-task and rewrite their priorities around it
 
-North Star MCP provides:
-- **Master Plan Storage** - A persistent, hierarchical goal structure
-- **Alignment Validation** - Tools to check if work aligns with goals (0-100 score)
-- **Progress Tracking** - Measure advancement toward the final objective
-- **Scope Guards** - Prevent feature creep and over-complication
-- **Decision Framework** - Help AI make choices that serve the master plan
+These compound. After compression the agent has weak context. The user says something. The agent latches onto that instead of re-reading the plan. It drifts. The original goal gets buried.
 
-## Installation
+Research confirms this: goal drift in multi-turn agent interactions is [well-documented](https://arxiv.org/search/?query=LLM+goal+drift) (AAAI/AIES-25, Microsoft/Salesforce "Lost in Conversation", Apollo Research).
+
+## How NorthStar Addresses It
+
+NorthStar uses two mechanisms:
+
+### 1. Server Instructions (Automatic Re-Orientation)
+
+NorthStar sets the MCP `instructions` field during server initialization. Clients that support it inject this into the agent's system prompt on every turn — including after context window compression. The instruction tells the agent to call `get_current_focus` to reload the project plan.
+
+This is the key feature. It survives context resets because it comes from the MCP connection handshake, not from conversation history.
+
+### 2. Persistent Project State (The Anchor)
+
+NorthStar stores structured project state on disk:
+
+- **Master plan** — vision, phases, milestones, success criteria
+- **Constraints** — explicit boundaries the agent should respect
+- **Decision log** — what was decided and why
+- **Codebase rules** — persistent rules agents must follow
+- **Session handoff** — context for seamless agent resumption
+
+When the agent calls `get_current_focus`, it gets all of this back in one response — re-grounding it to the original objective.
+
+## Setup
+
+### Install
 
 ```bash
-cd NorthStar
+git clone https://github.com/HolyWill90/North-Star-MCP.git
+cd North-Star-MCP
 npm install
 npm run build
 ```
 
-## Configuration
+### Configure MCP
 
-Add to your Roo Code MCP settings:
-
-**Location:** `C:\Users\BeeLink\AppData\Roaming\Roo-Code\MCP\mcp-servers.json`
+Add to your MCP client config (e.g. `~/.gemini/antigravity/mcp_config.json`):
 
 ```json
 {
   "mcpServers": {
     "north-star": {
       "command": "node",
-      "args": ["C:/Users/BeeLink/Desktop/NorthStar/build/index.js"],
-      "env": {
-        "PROJECT_ROOT": "C:/Users/BeeLink/Desktop/NorthStar"
-      }
+      "args": ["C:/absolute/path/to/North-Star-MCP/build/index.js"]
     }
   }
 }
 ```
 
-**Note:** Set `PROJECT_ROOT` to the NorthStar directory so storage is created inside the project.
+### Initialize a Project
 
-## Quick Start
+Ask your agent to call `init_master_plan` with your project context, or use `initialize_master_plan` to define everything manually.
 
-### 1. Initialize Master Plan
+### Dashboard
 
-```typescript
-use_mcp_tool("initialize_master_plan", {
-  name: "Task Manager App",
-  vision: "Simple, fast task manager for individuals with offline support",
-  successCriteria: [
-    "Users can create, edit, delete tasks",
-    "Works offline with local storage",
-    "Clean, minimal UI",
-    "Loads in under 2 seconds"
-  ],
-  constraints: [
-    {
-      type: "scope",
-      description: "No user authentication in v1",
-      rationale: "Keep it simple, focus on core functionality"
-    },
-    {
-      type: "technical",
-      description: "Use vanilla JS, no frameworks",
-      rationale: "Minimize dependencies, maximize performance"
-    }
-  ],
-  phases: [
-    {
-      name: "Core Functionality",
-      objective: "Basic CRUD operations working",
-      deliverables: ["HTML structure", "Task storage", "Basic UI"],
-      milestones: [
-        {
-          description: "Create task form and storage",
-          acceptanceCriteria: ["Form validates input", "Tasks persist in localStorage"]
-        }
-      ]
-    }
-  ]
-})
+A web dashboard starts automatically at `http://localhost:9889` showing project state across all discovered projects.
+
+## MCP Tools
+
+| Tool | Purpose |
+|---|---|
+| `init_master_plan` | AI-assisted plan creation from project context |
+| `initialize_master_plan` | Manual plan creation with full details |
+| `get_current_focus` | **Core tool** — returns current phase, constraints, and next steps |
+| `check_alignment` | Score how well a task aligns with the plan (0-100) |
+| `validate_scope` | Check if a proposed feature is within project scope |
+| `log_decision` | Record a decision with rationale and impact level |
+| `update_progress` | Update milestone status (auto-advances phases) |
+| `add_constraint` | Add scope/technical/time/complexity constraints |
+| `add_rule` | Add codebase rules agents must follow |
+| `read_rules` | Read all active rules |
+| `review_decisions` | Analyze past decisions for patterns |
+| `append_scratchpad` | Add persistent working notes |
+| `read_scratchpad` | Read scratchpad entries (filterable by tag) |
+| `create_handoff` | Create session handoff context |
+| `read_handoff` | Read the latest handoff |
+| `reset_session` | Archive and reset project state |
+| `list_archives` | List archived sessions |
+
+## MCP Resources
+
+NorthStar also exposes project state as MCP resources for host-driven context injection:
+
+| Resource URI | Content |
+|---|---|
+| `master-plan://current` | Full master plan |
+| `master-plan://progress` | Completion metrics |
+| `master-plan://constraints` | Active constraints |
+| `master-plan://decisions` | Decision history |
+| `master-plan://next-steps` | Recommended next actions |
+| `north-star://rules` | Codebase rules |
+| `north-star://scratchpad` | Agent scratchpad |
+| `north-star://handoff` | Latest session handoff |
+
+## Architecture
+
+```
+src/
+├── index.ts              # MCP server, tools, resources, stdio transport
+├── ui-server.ts          # Express dashboard with SSE streaming
+├── cli.ts                # Project onboarding CLI
+├── types.ts              # Core type definitions
+├── engine/
+│   ├── alignment-engine.ts   # LLM-powered alignment scoring
+│   ├── llm-client.ts         # Local LLM client (OpenAI-compatible)
+│   ├── model-manager.ts      # LLM process lifecycle
+│   └── scope-validator.ts    # Scope validation logic
+├── storage/
+│   ├── file-storage.ts       # Atomic file storage with locking
+│   ├── memory-storage.ts     # In-memory storage for testing
+│   └── migrations/           # Schema version migrations
+├── tools/
+│   ├── tools.ts              # All MCP tool implementations
+│   ├── init-plan-tool.ts     # AI plan generation
+│   └── session-manager.ts    # Archive management
+└── validation/
+    └── schemas.ts            # Zod input validation
 ```
 
-### 2. Check Alignment Before Work
+## Local LLM (Optional)
 
-```typescript
-use_mcp_tool("check_alignment", {
-  currentTask: "Add drag-and-drop task reordering",
-  proposedApproach: "Use HTML5 drag API"
-})
+NorthStar can use a local LLM for alignment scoring and AI-assisted plan generation. It expects an OpenAI-compatible API at `http://127.0.0.1:52625/v1/chat/completions`.
 
-// Response:
-{
-  alignmentScore: 55,
-  isAligned: false,
-  warnings: [
-    "Adds complexity beyond current phase scope",
-    "Not required for success criteria"
-  ],
-  recommendations: [
-    "Simple up/down buttons would meet the need",
-    "Save drag-and-drop for Phase 2 polish"
-  ]
-}
+Tested with:
+- **DeepSeek R1 Distill Llama 8B** on Intel NPU via FLM
+
+If no LLM is available, alignment scoring falls back to heuristic matching (keyword overlap + constraint checking).
+
+## Testing
+
+```bash
+npm test              # Watch mode
+npm run test:run      # Single run
+npm run test:coverage # With coverage report
 ```
 
-### 3. Get Current Focus
+## Known Limitations
 
-```typescript
-use_mcp_tool("get_current_focus", {})
-
-// Response:
-{
-  currentPhase: {
-    name: "Core Functionality",
-    objective: "Basic CRUD operations working"
-  },
-  priorityTasks: [
-    "Create task form and storage",
-    "Implement edit functionality"
-  ],
-  nextSteps: [
-    "Focus on phase: Core Functionality",
-    "Next task: Create task form and storage"
-  ]
-}
-```
-
-## Available Tools
-
-### `initialize_master_plan`
-Create the master plan for your project.
-
-**Parameters:**
-- `name` - Project name
-- `vision` - Ultimate goal (1-2 sentences)
-- `successCriteria` - Array of success criteria
-- `constraints` - Array of constraints (type, description, rationale)
-- `phases` - Array of phases with milestones
-
-### `check_alignment`
-Validate if a task aligns with the master plan.
-
-**Parameters:**
-- `currentTask` - Description of the task
-- `proposedApproach` (optional) - How you plan to implement it
-
-**Returns:** Score 0-100, warnings, and recommendations
-
-### `validate_scope`
-Check if a feature is within project scope.
-
-**Parameters:**
-- `featureDescription` - What you want to build
-- `justification` - Why it's needed
-
-**Returns:** In-scope status, reasoning, and alternatives
-
-### `log_decision`
-Record important decisions with rationale.
-
-**Parameters:**
-- `question` - The decision being made
-- `decision` - What was decided
-- `rationale` - Why
-- `impact` - low/medium/high
-
-### `update_progress`
-Update milestone completion status.
-
-**Parameters:**
-- `milestoneId` - ID of the milestone
-- `status` - pending/in_progress/completed
-
-### `get_current_focus`
-Get what should be worked on now.
-
-**Returns:** Current phase, active milestones, priority tasks
-
-### `add_constraint`
-Add a new constraint to prevent scope creep.
-
-**Parameters:**
-- `type` - scope/technical/time/complexity
-- `description` - What it prevents
-- `rationale` - Why it exists
-
-### `review_decisions`
-Analyze past decisions for patterns.
-
-**Parameters:**
-- `impactLevel` (optional) - Filter by impact
-
-**Returns:** Decisions, patterns, misalignments
-
-## Available Resources
-
-Access via `access_mcp_resource`:
-
-- `master-plan://current` - Full master plan
-- `master-plan://vision` - Vision and success criteria only
-- `master-plan://constraints` - All constraints
-- `master-plan://progress` - Progress metrics
-- `master-plan://decisions` - Decision history
-- `master-plan://next-steps` - Recommended next actions
-
-## Workflow Integration
-
-### Before Starting Any Task
-
-```typescript
-// 1. Check alignment
-const alignment = await use_mcp_tool("check_alignment", {
-  currentTask: "Add feature X"
-});
-
-// 2. If not aligned, show warnings
-if (!alignment.isAligned) {
-  // Present warnings and alternatives to user
-}
-
-// 3. Proceed with work
-// 4. Log decision
-await use_mcp_tool("log_decision", {
-  question: "How to implement feature X?",
-  decision: "Use approach Y",
-  rationale: "Best fits constraints",
-  impact: "medium"
-});
-
-// 5. Update progress
-await use_mcp_tool("update_progress", {
-  milestoneId: "milestone-id",
-  status: "completed"
-});
-```
-
-## Storage
-
-All data is stored in `.north-star/` directory:
-- `master-plan.json` - The master plan
-- `decisions.json` - Decision log
-- `metrics.json` - Progress metrics
-
-## Alignment Scoring
-
-Tasks are scored 0-100 based on:
-- **Vision alignment** (40%) - Does it serve the ultimate goal?
-- **Constraint compliance** (30%) - Does it violate any constraints?
-- **Phase relevance** (20%) - Is it relevant to current phase?
-- **Success criteria** (10%) - Does it contribute to success?
-
-**Score >= 70** = Aligned ✓  
-**Score < 70** = Warning ⚠️
-
-## Best Practices
-
-1. **Always start with context** - Check master plan before work
-2. **Validate before building** - Use `check_alignment` for every task
-3. **Log important decisions** - Document architectural choices
-4. **Update progress regularly** - Keep metrics current
-5. **Review periodically** - Use `review_decisions` to spot patterns
-
-## Example: Preventing Scope Creep
-
-```typescript
-// User asks for a complex feature
-User: "Add real-time collaboration with WebSockets"
-
-// AI checks alignment
-const result = await use_mcp_tool("check_alignment", {
-  currentTask: "Add real-time collaboration",
-  proposedApproach: "WebSockets + operational transforms"
-});
-
-// Result shows misalignment
-{
-  alignmentScore: 25,
-  isAligned: false,
-  warnings: [
-    "Violates constraint: 'No backend, pure client-side'",
-    "Violates constraint: 'Keep it simple'",
-    "Not in current phase deliverables"
-  ],
-  recommendations: [
-    "Focus on core single-user features first",
-    "Consider for v2 after validating core concept",
-    "Current priority: Complete Phase 1 deliverables"
-  ]
-}
-
-// AI presents alternatives
-AI: "This feature conflicts with our constraints. 
-     We agreed to keep v1 simple and client-side only.
-     Should we adjust the master plan, or focus on core features first?"
-```
+- MCP `instructions` field support varies by client — not all clients inject it into the system prompt
+- Global MCP config only — no per-workspace server isolation in some clients
+- Local LLM scoring is slow (~30-80s on consumer hardware) — the heuristic fallback is recommended for daily use
+- Single-project state per server instance
 
 ## License
 

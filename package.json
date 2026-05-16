@@ -1,14 +1,26 @@
 {
   "name": "north-star-mcp",
   "version": "1.0.0",
-  "description": "MCP server that keeps AI assistants focused on the master plan and prevents scope creep",
+  "description": "MCP server that anchors AI agents to their original goal",
   "main": "build/index.js",
+  "bin": {
+    "north-star-mcp": "build/cli.js"
+  },
   "type": "module",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
     "prepare": "npm run build",
-    "test": "node --test"
+    "start": "node build/index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:watch": "vitest --watch",
+    "lint": "eslint src test --ext .ts",
+    "lint:fix": "eslint src test --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\""
   },
   "keywords": [
     "mcp",
@@ -20,10 +32,32 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4"
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "pino": "^10.0.0",
+    "pino-pretty": "^13.1.2",
+    "portfinder": "^1.0.32",
+    "prom-client": "^15.1.3",
+    "proper-lockfile": "^4.1.2",
+    "semver": "^7.7.3",
+    "write-file-atomic": "^6.0.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
     "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/semver": "^7.7.1",
+    "@types/write-file-atomic": "^4.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
   }
 }

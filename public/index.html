@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NorthStar Agentic Co-Pilot</title>
+    <!-- Modern Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons for beautiful UI elements -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background dynamic gradient -->
+    <div class="bg-mesh"></div>
+
+    <div class="container">
+        <header class="glass-panel main-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="ph-fill ph-compass"></i>
+                    <h1>NorthStar <span class="badge">V2</span></h1>
+                </div>
+                <div class="project-meta">
+                    <i class="ph ph-folder-open"></i>
+                    <select id="project-switcher" class="instance-select">
+                        <option value="">Discovering projects...</option>
+                    </select>
+                </div>
+                <div class="header-actions">
+                    <div class="status-indicator">
+                        <div class="pulse-dot"></div>
+                        <span>Agent Connected</span>
+                    </div>
+                    <button id="shutdown-btn" class="btn-danger" title="Power Off Server">
+                        <i class="ph-bold ph-power"></i> Power Off
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Grid Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Column: Vision & Progress -->
+            <div class="col-left">
+                <!-- Vision Panel -->
+                <section class="glass-panel" id="vision-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-target"></i> Project Vision</h2>
+                    </div>
+                    <div class="panel-body">
+                        <p id="vision-text" class="placeholder-text">Loading vision...</p>
+                        <div class="success-criteria">
+                            <h3>Success Criteria</h3>
+                            <ul id="success-criteria-list">
+                                <li class="placeholder-text">Loading...</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Phase & Progress -->
+                <section class="glass-panel" id="progress-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-chart-line-up"></i> Current Phase</h2>
+                        <span id="phase-badge" class="badge outline">Active</span>
+                    </div>
+                    <div class="panel-body">
+                        <h3 id="phase-name" class="highlight-text">Loading Phase...</h3>
+                        <p id="phase-objective" class="sub-text">Loading objective...</p>
+                        
+                        <div class="progress-container mt-4">
+                            <div class="progress-header">
+                                <span>Milestones Completion</span>
+                                <span id="progress-percentage">0%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" id="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <ul id="milestones-list" class="mt-4 task-list">
+                            <!-- Dynamic Milestones -->
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- All Phases Overview -->
+                <section class="glass-panel" id="phases-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-map-trifold"></i> Roadmap</h2>
+                    </div>
+                    <div class="panel-body scrollable">
+                        <div id="phases-list" class="phases-overview">
+                            <p class="placeholder-text">Loading phases...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Rules, Decisions, Scratchpad -->
+            <div class="col-right">
+                <!-- Rules Panel -->
+                <section class="glass-panel border-accent" id="rules-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-shield-check"></i> Codebase Rules</h2>
+                        <span id="rules-count" class="badge">0 Active</span>
+                    </div>
+                    <div class="panel-body">
+                        <div id="rules-list" class="rules-grid">
+                            <p class="placeholder-text">Loading rules...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Decisions Log Panel -->
+                <section class="glass-panel" id="decisions-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-tree-structure"></i> Decision Log</h2>
+                        <span id="decisions-count" class="badge">0</span>
+                    </div>
+                    <div class="panel-body scrollable">
+                        <div id="decisions-list" class="timeline">
+                            <p class="placeholder-text">No decisions logged yet.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Handoff Panel -->
+                <section class="glass-panel" id="handoff-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-hand-arrow-down"></i> Session Handoff</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div id="handoff-content">
+                            <p class="placeholder-text">No handoff context available.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Scratchpad Panel -->
+                <section class="glass-panel" id="scratchpad-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-notebook"></i> Agent Scratchpad</h2>
+                    </div>
+                    <div class="panel-body scrollable">
+                        <div id="scratchpad-list" class="timeline">
+                            <p class="placeholder-text">Loading scratchpad entries...</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Constraints Panel -->
+                <section class="glass-panel" id="constraints-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph ph-lock-key"></i> Constraints</h2>
+                    </div>
+                    <div class="panel-body scrollable">
+                        <ul id="constraints-list" class="constraints-list">
+                            <p class="placeholder-text">Loading constraints...</p>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+            
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

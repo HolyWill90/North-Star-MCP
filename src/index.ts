@@ -13,21 +13,41 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { FileStorage } from './storage/file-storage.js';
 import { NorthStarTools } from './tools/tools.js';
+import * as schemas from './validation/schemas.js';
 
-// Get project root from environment or use current directory
-const PROJECT_ROOT = process.env.PROJECT_ROOT || process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = join(__dirname, '..');
+
+// PROJECT_ROOT = the NorthStar install directory (where this script lives).
+// Antigravity does not support per-workspace env vars or CLI args.
+const PROJECT_ROOT = projectRoot;
+
+import { startUIServer } from './ui-server.js';
+import os from 'os';
 
 // Initialize storage and tools
 const storage = new FileStorage(PROJECT_ROOT);
-const tools = new NorthStarTools(storage);
+const tools = new NorthStarTools(storage, PROJECT_ROOT);
 
+// UI Server will be started in main()
 // Create MCP server
 const server = new Server(
   {
     name: 'north-star-mcp',
     version: '1.0.0',
+    instructions: [
+      'MANDATORY: At the start of every conversation and after any context window reset or compression,',
+      'call get_current_focus to load the active project plan, phase, constraints, and current work focus.',
+      'This server maintains persistent project state that does NOT exist in your conversation history.',
+      'If you have lost context about what project you are working on, what phase you are in,',
+      'or what constraints apply — the answer is in get_current_focus.',
+      'Do not guess or reconstruct project state from memory. Read it from this server.',
+    ].join(' '),
   },
   {
     capabilities: {
@@ -44,8 +64,61 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
+        name: 'init_master_plan',
+        description:
+          'AI-assisted master plan creation. Analyzes conversation context to gather project requirements, then generates an intelligent master plan. Use this when starting a new project - the AI will ask questions to understand the project before creating the plan.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            context: {
+              type: 'object',
+              description: 'Project context gathered from conversation',
+              properties: {
+                projectName: { type: 'string' },
+                projectType: {
+                  type: 'string',
+                  enum: [
+                    'web-app',
+                    'api-service',
+                    'cli-tool',
+                    'library',
+                    'mobile-app',
+                    'desktop-app',
+                    'other',
+                  ],
+                },
+                description: { type: 'string' },
+                primaryLanguage: { type: 'string' },
+                frameworks: {
+                  type: 'array',
+                  items: { type: 'string' },
+                },
+                targetPlatform: {
+                  type: 'array',
+                  items: { type: 'string' },
+                },
+                mainGoal: { type: 'string' },
+                targetUsers: { type: 'string' },
+                keyFeatures: {
+                  type: 'array',
+                  items: { type: 'string' },
+                },
+                timeline: { type: 'string' },
+                teamSize: { type: 'number' },
+                technicalConstraints: {
+                  type: 'array',
+                  items: { type: 'string' },
+                },
+              },
+            },
+          },
+          required: ['context'],
+        },
+      },
+      {
         name: 'initialize_master_plan',
-        description: 'Create a new master plan for the project with vision, phases, and constraints',
+        description:
+          'Create a new master plan for the project with vision, phases, and constraints (manual mode - requires all details upfront)',
         inputSchema: {
           type: 'object',
           properties: {
@@ -251,6 +324,104 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      {
+        name: 'reset_session',
+        description:
+          'Reset the current project session and clear all data (with optional archiving)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            archive: {
+              type: 'boolean',
+              description: 'Whether to archive the session before resetting (default: true)',
+            },
+            reason: {
+              type: 'string',
+              description: 'Reason for resetting the session',
+            },
+          },
+        },
+      },
+      {
+        name: 'list_archives',
+        description: 'List all archived project sessions',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'add_rule',
+        description: 'Add a new codebase rule to enforce',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            description: { type: 'string', description: 'The rule description' },
+            rationale: { type: 'string', description: 'Why this rule exists' },
+            severity: { type: 'string', enum: ['warn', 'error'], description: 'Rule severity' },
+          },
+          required: ['description', 'rationale', 'severity'],
+        },
+      },
+      {
+        name: 'read_rules',
+        description: 'Read all codebase rules',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'append_scratchpad',
+        description: 'Append an entry to the agent scratchpad',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            tag: { type: 'string', description: 'A short tag for categorization' },
+            content: { type: 'string', description: 'The content to append' },
+          },
+          required: ['tag', 'content'],
+        },
+      },
+      {
+        name: 'read_scratchpad',
+        description: 'Read the agent scratchpad',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            tag: { type: 'string', description: 'Optional tag to filter by' },
+          },
+        },
+      },
+      {
+        name: 'create_handoff',
+        description: 'Create a session handoff context',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            summary: { type: 'string', description: 'Summary of the current state' },
+            brokenFeatures: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'List of currently broken features',
+            },
+            nextSteps: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'List of next steps to take',
+            },
+          },
+          required: ['summary', 'brokenFeatures', 'nextSteps'],
+        },
+      },
+      {
+        name: 'read_handoff',
+        description: 'Read the latest session handoff context',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ],
   };
 });
@@ -263,52 +434,67 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     switch (name) {
-      case 'initialize_master_plan':
+      case 'init_master_plan':
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(await tools.initializeMasterPlan(args as any), null, 2),
+              text: JSON.stringify(await tools.initMasterPlan(args as any), null, 2),
+            },
+          ],
+        };
+
+      case 'initialize_master_plan':
+        const initArgs = schemas.InitializeMasterPlanInputSchema.parse(args);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.initializeMasterPlan(initArgs), null, 2),
             },
           ],
         };
 
       case 'check_alignment':
+        const checkArgs = schemas.CheckAlignmentInputSchema.parse(args);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(await tools.checkAlignment(args as any), null, 2),
+              text: JSON.stringify(await tools.checkAlignment(checkArgs), null, 2),
             },
           ],
         };
 
       case 'log_decision':
+        const logArgs = schemas.LogDecisionInputSchema.parse(args);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(await tools.logDecision(args as any), null, 2),
+              text: JSON.stringify(await tools.logDecision(logArgs), null, 2),
             },
           ],
         };
 
       case 'update_progress':
+        const progressArgs = schemas.UpdateProgressInputSchema.parse(args);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(await tools.updateProgress(args as any), null, 2),
+              text: JSON.stringify(await tools.updateProgress(progressArgs), null, 2),
             },
           ],
         };
 
       case 'validate_scope':
+        const validateArgs = schemas.ValidateScopeInputSchema.parse(args);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(await tools.validateScope(args as any), null, 2),
+              text: JSON.stringify(await tools.validateScope(validateArgs), null, 2),
             },
           ],
         };
@@ -324,11 +510,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
 
       case 'add_constraint':
+        const constraintArgs = schemas.AddConstraintInputSchema.parse(args);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(await tools.addConstraint(args as any), null, 2),
+              text: JSON.stringify(await tools.addConstraint(constraintArgs), null, 2),
             },
           ],
         };
@@ -339,6 +526,90 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify(await tools.reviewDecisions(args as any), null, 2),
+            },
+          ],
+        };
+
+      case 'reset_session':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.resetSession(args as any), null, 2),
+            },
+          ],
+        };
+
+      case 'list_archives':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.listArchives(), null, 2),
+            },
+          ],
+        };
+
+      case 'add_rule':
+        const addRuleArgs = schemas.AddRuleInputSchema.parse(args);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.addRule(addRuleArgs), null, 2),
+            },
+          ],
+        };
+
+      case 'read_rules':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.readRules(), null, 2),
+            },
+          ],
+        };
+
+      case 'append_scratchpad':
+        const appendScratchpadArgs = schemas.AppendScratchpadInputSchema.parse(args);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.appendScratchpad(appendScratchpadArgs), null, 2),
+            },
+          ],
+        };
+
+      case 'read_scratchpad':
+        const readScratchpadArgs = schemas.ReadScratchpadInputSchema.parse(args || {});
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.readScratchpad(readScratchpadArgs), null, 2),
+            },
+          ],
+        };
+
+      case 'create_handoff':
+        const createHandoffArgs = schemas.CreateHandoffInputSchema.parse(args);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.createHandoff(createHandoffArgs), null, 2),
+            },
+          ],
+        };
+
+      case 'read_handoff':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await tools.readHandoff(), null, 2),
             },
           ],
         };
@@ -400,6 +671,24 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
         uri: 'master-plan://next-steps',
         name: 'Next Steps',
         description: 'Recommended next actions',
+        mimeType: 'application/json',
+      },
+      {
+        uri: 'north-star://rules',
+        name: 'Codebase Rules',
+        description: 'All enforced codebase rules',
+        mimeType: 'application/json',
+      },
+      {
+        uri: 'north-star://scratchpad',
+        name: 'Agent Scratchpad',
+        description: 'Persistent agent scratchpad notes',
+        mimeType: 'application/json',
+      },
+      {
+        uri: 'north-star://handoff',
+        name: 'Session Handoff',
+        description: 'Latest session handoff context',
         mimeType: 'application/json',
       },
     ],
@@ -496,6 +785,42 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
           ],
         };
 
+      case 'north-star://rules':
+        const rules = await tools.readRules();
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: JSON.stringify(rules.rules, null, 2),
+            },
+          ],
+        };
+
+      case 'north-star://scratchpad':
+        const scratchpad = await tools.readScratchpad({});
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: JSON.stringify(scratchpad.entries, null, 2),
+            },
+          ],
+        };
+
+      case 'north-star://handoff':
+        const handoff = await tools.readHandoff();
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: JSON.stringify(handoff.handoff, null, 2),
+            },
+          ],
+        };
+
       default:
         throw new Error(`Unknown resource: ${uri}`);
     }
@@ -505,14 +830,51 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   }
 });
 
+import { ModelManager } from './engine/model-manager.js';
+
+const modelManager = new ModelManager();
+
 /**
  * Start the server
  */
 async function main() {
+  // Scan the user's Desktop (and subdirectories) for .north-star projects
+  const scanRoots = [join(os.homedir(), 'Desktop')];
+  await startUIServer(storage, projectRoot, PROJECT_ROOT, scanRoots, 9889);
+
+  // Start the model manager (will spin up LLM if down)
+  try {
+    await modelManager.start();
+  } catch (error) {
+    console.error('Warning: Model manager failed to start LLM. Check if FLM is installed.', error);
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('North Star MCP Server running on stdio');
+  console.error(`North Star MCP Server running on stdio for project: ${PROJECT_ROOT}`);
 }
+
+let shuttingDown = false;
+
+async function gracefulShutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.error('\nGracefully shutting down NorthStar...');
+
+  try {
+    // Generate an automatic handoff before dying
+    await tools.generateAutonomousHandoff();
+  } catch (e) {
+    console.error('Failed to generate autonomous handoff on shutdown:', e);
+  }
+
+  modelManager.stop();
+  process.exit(0);
+}
+
+// Cleanup on exit
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
 
 main().catch((error) => {
   console.error('Fatal error:', error);
